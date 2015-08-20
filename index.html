@@ -1,0 +1,570 @@
+<html>
+   <head>
+      <title>Jogo de Damas</title>
+      <script language="javascript">
+         var $$campo_sel;
+         var $$jogador  = 1;
+         var $$comeu    = 0;
+         var $$tem_come = 0;
+         var $$hist     = new Array;
+         var $$come;
+         var $$idx_come;
+         var $$joga;
+         var $$idx_joga;
+      
+         function $att(campo, att){
+            if (att !== undefined){
+               for (var xi = 0; xi < att.length; xi++){
+                  campo.setAttribute(att[xi][0], att[xi][1]);
+                  if (att[xi][0].toUpperCase() == 'TITLE')
+                     campo.setAttribute('alt', att[xi][1]);
+               };
+            };
+         };
+
+         function $div(att){
+            var v_div = document.createElement("DIV");
+            $att(v_div, att);
+            return v_div;
+         };
+
+         function $img(att){
+            var v_img = document.createElement("IMG");
+            $att(v_img, att);
+            return v_img;
+         };
+
+         function $tab(att){
+            var v_tab = document.createElement("TABLE");
+            $att(v_tab, att);
+            return v_tab;
+         };
+
+         function $row(att) {
+            var v_row = document.createElement("TR");
+            $att(v_row, att);
+            return v_row;
+         };
+
+         function $cel(att){
+            var v_cel = document.createElement("TD");
+            $att(v_cel, att);
+            return v_cel;
+         };
+
+         function $get(id){
+            return (id != '' ? document.getElementById(id) : null);
+         };
+
+         function dama_tabuleiro(){
+            v_tab = $tab([['id', 'damas'],['border','0'], ['cellpadding','0'], ['cellspacing','0']]);
+            for (var lin = 9; lin >= 0; lin--){
+               v_row = $row([['id', 'dm_tr'+lin]]);
+               for (var col = 0; col <= 9; col++){
+                  if ((col > 0 && col < 9) && (lin > 0 && lin<9)){
+                     v_cor = ((((col%2) != 0 ? 1 : 0)+((lin%2) != 0 ? 1 : 0))%2) != 0 ? 'cor1' : 'cor2';
+
+                     v_div = $div([['id','dv_x'+col+'y'+lin], ['class',v_cor],['player','0'],['jogar','0'],['dama','0'],['onmouseover','dama_over(this, 0);'],['onmouseout','dama_out(this);'],['onclick','dama_click(this);']]);
+                     v_cel = $cel([['id', 'dm_td'+col], ['class', v_cor]]);
+                     v_cel.appendChild(v_div)
+                  }else{
+                     if ((col == 0 ||col == 9) && (lin == 0||lin==9)){
+                        v_cor = '';
+                        v_txt = '&nbsp;';
+                     }else if(col == 0){
+                        v_cor = 'borda_dir';
+                        if (lin > 0 && lin < 9) v_txt = lin; else v_txt = '&nbsp;';
+                     } else if(col == 9){
+                        v_cor = 'borda_esq';
+                        v_txt = '&nbsp;';
+                     } else if(lin == 0){
+                        v_cor = 'borda_top';
+                        v_txt = '&nbsp;';
+                     } else if(lin == 9){
+                        v_cor = 'borda_bot';
+                        switch(col){
+                           case 1:  v_txt = 'A';      break;
+                           case 2:  v_txt = 'B';      break;
+                           case 3:  v_txt = 'C';      break;
+                           case 4:  v_txt = 'D';      break;
+                           case 5:  v_txt = 'E';      break;
+                           case 6:  v_txt = 'F';      break;
+                           case 7:  v_txt = 'G';      break;
+                           case 8:  v_txt = 'H';      break;
+                           default: v_txt = '&nbsp;'; break;
+                        }
+                     }
+                  
+                     v_cel = $cel([['id', 'dm_tdx'+col+'y'+lin],['class',v_cor],['valign','middle'],['align','center']]);
+
+                     if ((col == 9) && (lin == 8)){
+                        v_cel = $cel([['id', 'dm_tdx'+col+'y'+lin],['class',v_cor],['valign','middle'],['align','center'],['rowspan','8']]);
+                        v_cel.innerHTML  = '<textarea id="resultados" readonly></textarea>';
+                        v_cel.innerHTML += '<h2 id="player_atual" class="player1">Jogador 1</h2>'
+                     }else if ((col == 9) && (lin < 8) && (lin > 0)){
+                        v_cel = null;
+                     }else{
+                        v_cel.innerHTML = v_txt;
+                     }
+                  }
+                  //caso tenha célula, insere a mesma
+                  if (v_cel){
+                     v_row.appendChild(v_cel);
+                  }
+               }
+               v_tab.appendChild(v_row);
+            }
+            v_div = $get('dv_damas');
+            v_div.appendChild(v_tab);
+         
+            //para funcionar na porra do IE
+            v_div.innerHTML = v_div.innerHTML;
+         
+            v_div.style.marginLeft = (v_div.offsetWidth / 2 * -1)+'px';
+            v_div.style.marginTop  = (v_div.offsetHeight / 2 * -1)+'px';
+         }
+
+         function dama_reset(){
+            $$jogador   = 1;
+            $$campo_sel = '';
+            $$tem_come  = 0;
+            $get('resultados').value = 'Iniciando o jogo...\nPlayer1:\n';
+            $get('player_atual').innerHTML = 'Jogador '+$$jogador;
+            $get('player_atual').className = 'player'+$$jogador;
+
+            for (var lin = 8; lin >= 1; lin--){
+               for (var col = 1; col <= 8; col++){
+                  $get('dv_x'+col+'y'+lin).innerHTML = '';
+                  $get('dv_x'+col+'y'+lin).setAttribute('jogar', 0);
+                  $get('dv_x'+col+'y'+lin).setAttribute('player', 0);
+                  dama_out($get('dv_x'+col+'y'+lin));
+                  if (((((col%2) != 0 ? 1 : 0)+((lin%2) != 0 ? 1 : 0))%2) != 0)
+                     if (lin > 5) {
+                        $get('dv_x'+col+'y'+lin).setAttribute('player', 2);
+                        $get('dv_x'+col+'y'+lin).appendChild($img([['src','./dama2.png']]));
+                     }else if (lin < 4){
+                        $get('dv_x'+col+'y'+lin).setAttribute('player', 1);
+                        $get('dv_x'+col+'y'+lin).appendChild($img([['src','./dama1.png']]));
+                     }
+               }
+            }
+         }
+
+         function iniciar(){
+            dama_tabuleiro();
+            dama_reset();
+         }
+
+         function dama_over(campo, cor){
+            v_jogar = campo.getAttribute('jogar') == 1;
+            if ((!$$campo_sel && campo.getAttribute('player') == $$jogador) || ($$campo_sel && v_jogar)){
+               if (v_jogar) cor = 1;
+               switch(cor){
+                  case 0:  v_cor = 'yellow';  break;
+                  case 1:  v_cor = 'aqua';    break;
+                  case 2:  v_cor = 'lime';    break;
+                  default: v_cor = 'black';   break;
+               }
+               campo.style.border = '1px solid '+v_cor;
+               campo.parentNode.style.border = '1px solid '+v_cor;
+            }
+         }
+
+         function dama_out(campo){
+            if (campo.id != $$campo_sel && campo.getAttribute('jogar') != '1'){
+               campo.style.border = '';
+               campo.parentNode.style.border = '1px solid black';
+            }
+         }
+
+         function dama_inicia_comejoga(){
+            $$come     = new Array(2);
+            $$come     = [$$come,$$come,$$come,$$come];
+            $$idx_come = 0;
+            $$joga     = new Array(2);
+            $$joga     = [$$joga,$$joga,$$joga,$$joga];
+            $$idx_joga = 0;
+         }
+
+         function dama_come(id, direcao, dama, nivel){
+            v_id = id;
+            v_xx = ((direcao%2) == 0 ? 1 : -1) + parseInt(id.substring(id.indexOf('x')+1, id.indexOf('y')));
+            v_yy = ((direcao<3)      ? 1 : -1) + parseInt(id.substring(id.indexOf('y')+1));
+
+            if (nivel > 1){
+               v_id  = 'dv_x'+v_xx+'y'+v_yy;
+               v_xx = v_xx + ((direcao%2) == 0 ? 1 : -1);
+               v_yy = v_yy + ((direcao<3)      ? 1 : -1);
+
+               campo = $get(v_id);
+               if (!campo)
+                  return false;
+
+               v_player = campo.getAttribute('player');
+               if (v_player == 0 || v_player == $$jogador)
+                  return false;
+            }
+
+            campo = $get('dv_x'+v_xx+'y'+v_yy);
+            if (!campo)
+               return false;
+
+            if (campo.getAttribute('player') == 0){
+               $$come[$$idx_come][0] = v_id;
+               $$come[$$idx_come][1] = campo.id;
+               $$idx_come++;
+
+               campo.setAttribute('jogar', 1);
+               dama_over(campo, 2);
+               return true;
+            }
+
+            return false;
+         }
+
+         function dama_limpa_jogar(){
+            for (var lin = 8; lin >= 1; lin--)
+               for (var col = 1; col <= 8; col++){
+                  $get('dv_x'+col+'y'+lin).setAttribute('jogar', 0);
+                  dama_out($get('dv_x'+col+'y'+lin));
+               }
+         }
+
+         function dama_jogar(id){
+            v_pode_jogar = 0;
+
+            v_x        = parseInt(id.substring(id.indexOf('x')+1, id.indexOf('y')));
+            v_y        = parseInt(id.substring(id.indexOf('y')+1));
+
+            campo      = $get(id);
+            v_player   = campo.getAttribute('player');
+            v_jogar    = campo.getAttribute('jogar');
+            v_dama     = campo.getAttribute('dama');
+
+            dama_inicia_comejoga();
+
+            if (v_dama == 1){
+               v_ini = 1;
+               v_fim = 4;
+            }else if(v_player == 1){
+               v_ini = 1;
+               v_fim = 2;
+            }else if(v_player == 2){
+               v_ini = 3;
+               v_fim = 4;
+            }else return v_pode_jogar;
+            /* posicionamento conforme numeração de xy
+            (1)X     X(2)
+                  X(atual)
+            (3)X     X(4)
+            */
+            for (var i = v_ini; i <= v_fim; i++){
+               //se X for 1 ou 3, então diminui X senão soma X
+               v_xx = (i%2) != 0 ? v_x-1 : v_x+1;
+               //se Y for 1 ou 2 então soma Y senão diminui Y
+               v_yy = i <= 2 ? v_y+1 : v_y-1;
+               //alert(i+'@xxyy='+v_xx+'-'+v_yy);
+               if (v_xx < 1 || v_xx > 8 || v_yy < 1 || v_yy > 8)
+                  continue;
+               //alert('cont');
+            
+               campo = $get('dv_x'+v_xx+'y'+v_yy);
+
+               v_player = campo.getAttribute('player');
+               if (v_player != 0 && v_player != $$jogador){
+                  if (dama_come(campo.id, i, v_dama, 1)){
+                     v_pode_jogar = 1;
+                  }
+                  continue;
+               } else if (v_player != 0 && v_player == $$jogador){
+                  continue;
+               }
+
+               v_pode_jogar = 1;
+               $$joga[$$idx_joga] = campo.id;
+               $$idx_joga++;
+               campo.setAttribute('jogar', 1);
+               dama_over(campo, 1);
+            }
+
+            if ($$tem_come == 1 && $$idx_come == 0){
+               alert('Você só pode mexer em peças que comem peças adversárias');
+               dama_limpa_jogar();
+               dama_out($get(id));
+               return 0;
+            }
+
+            if ($$idx_come > 0 && $$idx_joga > 0){
+               for (var i = 0; i < $$idx_joga; i++){
+                  campo = $get($$joga[i]);
+                  campo.setAttribute('jogar', 0);
+                  dama_out(campo);
+               }
+            }
+
+            return v_pode_jogar;
+         }
+
+         function dama_grava_hist(orig, dest, come, comido, dama){
+            if (!dama){
+               v_vet = new Array(4);
+ 
+               v_x      = orig.substring(orig.indexOf('x')+1, orig.indexOf('y'));
+               v_y      = orig.substring(orig.indexOf('y')+1);
+               v_vet[0] = $get('dm_tdx'+v_x+'y9').innerHTML + $get('dm_tdx0y'+v_y).innerHTML;
+ 
+               v_x      = dest.substring(dest.indexOf('x')+1, dest.indexOf('y'));
+               v_y      = dest.substring(dest.indexOf('y')+1);
+               v_vet[1] = $get('dm_tdx'+v_x+'y9').innerHTML + $get('dm_tdx0y'+v_y).innerHTML;
+ 
+               if (comido){
+                  v_x      = come.substring(come.indexOf('x')+1, come.indexOf('y'));
+                  v_y      = come.substring(come.indexOf('y')+1);
+                  v_vet[2] = $get('dm_tdx'+v_x+'y9').innerHTML + $get('dm_tdx0y'+v_y).innerHTML;
+               }else
+                  v_vet[2] = '';
+
+               v_vet[3] = false;
+               $$hist[$$hist.length] = v_vet;
+            } else{
+               $$hist[$$hist.length-1][3] = true;
+            }
+         }
+
+         function dama_posta_hist(){
+            v_campo  = $get('resultados');
+            v_mult   = 1;
+            v_pontos = 0;
+            v_hponto = '';
+            for (var i = 0; i < $$hist.length; i++){
+               if ($$hist[i][2]){
+                  v_comeu = '\n   Comeu: '+$$hist[i][2];
+                  v_pontos += 1 * v_mult;
+                  v_mult++;
+               } else {
+                  v_comeu = '';
+               }
+               if ($$hist[i][3]){
+                  v_hdama = '\n   **Virou Dama**';
+                  v_pontos++;
+               }else{
+                  v_hdama  = '';
+               }
+               if (i+1 == $$hist.length){
+                  if (v_pontos > 0){
+                     v_hponto = '\n   Pontos: '+v_pontos;
+                  }
+                  v_campo.value += '   de '+$$hist[i][0]+' para '+$$hist[i][1]+v_comeu+v_hdama+v_hponto+'\nPlayer'+$$jogador+':\n';
+               }else{
+                  v_campo.value += '   de '+$$hist[i][0]+' para '+$$hist[i][1]+v_comeu+v_hdama+'\n';
+               }
+            }
+            $$hist = new Array;
+            v_campo.scrollTop = v_campo.scrollHeight;
+         }
+
+         function dama_atualiza_tem_come(){
+            v_peca_player1 = 0;
+            v_peca_player2 = 0;
+            for (var lin = 8; lin >= 1; lin--)
+               for (var col = 1; col <= 8; col++){
+                  if ($get('dv_x'+lin+'y'+col).getAttribute('player') == 1){
+                     v_peca_player1++;
+                  }else if ($get('dv_x'+lin+'y'+col).getAttribute('player') == 2){
+                     v_peca_player2++;
+                  }
+               }
+
+            if (v_peca_player1 == 0){
+               alert('O jogador 1 não tem mais peças na mesa. O jogo está encerrado e o player 2 é vitorioso!');
+            }
+
+            if (v_peca_player2 == 0){
+               alert('O jogador 2 não tem mais peças na mesa. O jogo está encerrado e o player 1 é vitorioso!');
+            }
+
+            for (var lin = 8; lin >= 1; lin--)
+               for (var col = 1; col <= 8; col++){
+                  v_campo  = $get('dv_x'+lin+'y'+col);
+                  v_player = v_campo.getAttribute('player');
+                  v_dama   = v_campo.getAttribute('dama');
+                  if (v_campo.getAttribute('player') == $$jogador){
+                     var v_dir = new Array;
+                     if (v_dama == 1){
+                        v_dir = [1,2,3,4];
+                     }else if ($$jogador == 1){
+                        v_dir = [1,2];
+                     }else if ($$jogador == 2){
+                        v_dir = [3,4];
+                     }
+                     for (var i = 0; i < v_dir.length; i++){
+                        if (dama_come(v_campo.id, v_dir[i], v_dama, 2)){
+                           $$tem_come = 1;
+                           return;
+                        }
+                     }
+                  }
+               }
+
+            $$tem_come = 0;
+         }
+
+         function dama_jogou(orig, dest){
+            v_comeu = 0;
+            if ($$idx_come > 0)
+               for (var i = 0; i < $$idx_come; i++){
+                  if ($$come[i][1] == dest){
+                     campo = $get($$come[i][0]);
+                     campo.innerHTML = '';
+                     campo.setAttribute('player', 0);
+                     v_comeu = 1;
+                  }
+               }
+            if (v_comeu == 1){
+                dama_grava_hist(orig, dest, $$come[i][0], true, false);
+            }else{
+                dama_grava_hist(orig, dest, null, false, false);
+            }
+            dama_inicia_comejoga;
+
+            v_orig = $get(orig);
+            v_dest = $get(dest);
+            v_dest.innerHTML = v_orig.innerHTML;
+            v_orig.innerHTML = '';
+            v_dest.setAttribute('player', v_orig.getAttribute('player'));
+            v_orig.setAttribute('player', 0);
+            v_dest.setAttribute('dama', v_orig.getAttribute('dama'));
+            v_orig.setAttribute('dama', 0);
+
+            v_y = parseInt(dest.substring(dest.indexOf('y')+1));
+            if (($$jogador == 1 && v_y == 8)||($$jogador == 2 && v_y == 1)){
+               campo = v_dest.firstChild;
+               if (campo){
+                  campo.src = campo.src.substring(0,campo.src.indexOf('.png')-1)+ parseInt($$jogador+2)+ '.png';
+                  v_dest.setAttribute('dama', 1);
+                  dama_grava_hist(null, null, null, null, true);
+               }
+            }
+
+            dama_limpa_jogar();
+            $$jogador   = $$jogador == 1 ? 2 : 1;
+            $$campo_sel = '';
+            $$comeu     = 0;
+            dama_out(v_orig);
+
+            if (v_comeu == 1){
+               $$jogador   = $$jogador == 1 ? 2 : 1;
+               v_come      = 0;
+               $$campo_sel = dest;
+
+               for (var i = 1; i<=4; i++){
+                  if (dama_come(dest, i, v_dest.getAttribute('dama'), 2))
+                     v_come = 1;
+               }
+
+               $$campo_sel = '';
+
+               if (v_come == 1){
+                  dama_over(v_dest, 0);
+                  $$campo_sel = dest;
+                  $$comeu = 1;
+                  return;
+               }else{
+                  $$jogador = $$jogador == 1 ? 2 : 1;
+                  $$comeu   = 0;
+               }
+            }
+            $get('player_atual').innerHTML = 'Jogador '+$$jogador;
+            $get('player_atual').className = 'player'+$$jogador;
+            dama_posta_hist();
+            dama_atualiza_tem_come();
+         }
+
+         function dama_click(campo){
+            if (campo.getAttribute('player') != $$jogador && campo.getAttribute('player') != 0)
+               return;
+            if (campo.id == $$campo_sel && $$comeu == 1)
+               return;
+
+            if (campo.id == $$campo_sel){
+               dama_limpa_jogar();
+               $$campo_sel = '';
+               dama_inicia_comejoga;
+               dama_out(campo);
+            }else if (!$$campo_sel){
+               dama_over(campo, 0);
+               $$campo_sel = campo.id;
+               if (dama_jogar($$campo_sel) == 0)
+                  $$campo_sel = '';
+            }else if (campo.getAttribute('jogar') == 1){
+               dama_jogou($$campo_sel, campo.id);
+            }
+         }
+      </script>
+      <style type="text/css" id="css1">
+         td{
+            border:        0px solid black;
+            color:         red;
+            font-weight:   bold;
+            font-family:   courier;
+         }
+         td.borda_dir{
+            border-right:  1px solid black;
+            padding-right: 4px;
+         }
+         td.borda_esq{
+            border-left:   1px solid black;
+         }
+         td.borda_bot{
+            border-bottom: 1px solid black;
+         }
+         td.borda_top{
+            border-top:    1px solid black;
+         }
+         td.cor1,td.cor2{
+            border:        1px solid black;
+         }
+         tr,table{
+            border: 0px solid black;
+         }
+         div.cor1{
+            height:   48px;
+            width:    48px;
+            overflow: hidden;
+            border: 1px solid #228B22;
+            background-color: #228B22;
+         }
+
+         div.cor2{
+            height:   48px;
+            width:    48px;
+            overflow: hidden;
+            border: 1px solid  #A9A9A9;
+            background-color:  #A9A9A9;
+         }
+
+         textarea{
+            overflow-x:       hidden;
+            overflow-y:       scroll;
+            margin:           5px;
+            border:           2px dotted #009ACD;
+            height:           330px;
+            width:            200px;
+            background-color: #F0FFF0;
+            color:            navy;
+         }
+
+         h2.player1{
+            color: #DEB887;
+         }
+         h2.player2{
+            color: #8B4513;
+         }
+
+      </style>
+   </head>
+   <body onload="iniciar();" style="background-color:#F0FFF0;">
+      <input type="button" value="resetar" onclick="dama_reset();"/>
+      <div id="dv_damas" style="position:absolute;left:50%;top:50%;"></div>
+   </body>
+</html>
